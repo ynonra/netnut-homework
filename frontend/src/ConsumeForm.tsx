@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   consume,
@@ -26,9 +26,21 @@ export function ConsumeForm() {
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
 
+  // The idempotency key for the current submission (docs/adr/0002). Minted once
+  // per submit in onSubmit and held in a ref so React Query's retries reuse it —
+  // guaranteeing a retried POST is charged exactly once. A fresh submission mints
+  // a new key, so it is a deliberate second action, not a replay.
+  const idempotencyKey = useRef<string>("");
+
   const mutation = useMutation<LedgerEntry, Error, void>({
     mutationFn: () =>
-      consume({ customerId, productId, quantity: Number(quantity) }),
+      consume(
+        { customerId, productId, quantity: Number(quantity) },
+        idempotencyKey.current,
+      ),
+    // Retries reuse the same mutationFn closure, hence the same key in the ref —
+    // so a retried submission is deduped server-side to a single charge.
+    retry: 2,
     onSuccess: () => {
       // Refetch balances so the dashboard reflects the deduction immediately.
       void queryClient.invalidateQueries({ queryKey: ["customers"] });
@@ -44,6 +56,9 @@ export function ConsumeForm() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
+    // Mint a fresh key per submission (docs/adr/0002); retries of this submission
+    // reuse it, a new submission gets a new one.
+    idempotencyKey.current = crypto.randomUUID();
     mutation.mutate();
   }
 

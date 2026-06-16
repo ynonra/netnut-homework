@@ -58,12 +58,25 @@ model Customer {
 /// index on (customerId, createdAt) backs the newest-first history seek.
 ///
 /// `amount` and `cost` are in integer minor units (e.g. cents) — never floats.
+///
+/// `idempotencyKey` is a client-minted UUID carried on a single logical
+/// consumption submission and reused across its retries (docs/adr/0002). It is
+/// `@unique`: inserting a row with a duplicate key inside the consume transaction
+/// throws a unique-constraint violation, and that violation *is* the "already
+/// processed" signal — caught and treated as a replay so no second deduction
+/// occurs. The header is optional, so the column is nullable; omitted requests
+/// store NULL and are not deduped (SQLite treats each NULL as distinct in a
+/// UNIQUE index, so multiple NULLs coexist freely).
 model LedgerEntry {
   id         Int               @id @default(autoincrement())
   customerId String
   customer   Customer          @relation(fields: [customerId], references: [id])
   /// CONSUMPTION (this slice) or, later, TOPUP. Stored as a string for SQLite.
   type       String
+  /// Client-minted idempotency key for the originating submission (docs/adr/0002).
+  /// Unique so a replayed key collides and is treated as a replay; nullable so
+  /// omitted (header-less) requests are processed normally without dedup.
+  idempotencyKey String?       @unique
   /// The Product consumed (null for non-consumption entries such as top-ups).
   productId  String?
   /// Units consumed in this event (null for non-consumption entries).

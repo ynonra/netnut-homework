@@ -14,6 +14,10 @@ export const consumptionRouter = Router();
  * Wallet Balance atomically, only if funds suffice (docs/adr/0001), and inserts
  * the LedgerEntry in the same transaction.
  *
+ * Honors an optional `Idempotency-Key` header (docs/adr/0002): a replayed key
+ * returns the original ledger row without a second deduction. Omitted → processed
+ * normally with no dedup, so manual `curl` testing stays simple.
+ *
  *   201 — charged; returns the created ledger entry.
  *   400 — invalid input (missing fields, non-positive / non-integer quantity).
  *   402 — insufficient funds: { error: "insufficient_funds", balance, required }.
@@ -22,6 +26,16 @@ export const consumptionRouter = Router();
 consumptionRouter.post("/consumption-events", async (req, res, next) => {
   try {
     const { customerId, productId, quantity } = req.body ?? {};
+
+    // Optional client-minted idempotency key (docs/adr/0002). Header names are
+    // case-insensitive; Express lower-cases them. A header may arrive as an array
+    // if sent twice — take the first. Absent or blank → no dedup.
+    const rawKey = req.headers["idempotency-key"];
+    const headerKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+    const idempotencyKey =
+      typeof headerKey === "string" && headerKey.length > 0
+        ? headerKey
+        : undefined;
 
     // Input validation at the route boundary.
     if (typeof customerId !== "string" || customerId.length === 0) {
@@ -49,6 +63,7 @@ consumptionRouter.post("/consumption-events", async (req, res, next) => {
       customerId,
       productId,
       quantity,
+      idempotencyKey,
     });
     res.status(201).json({ data: entry });
   } catch (err) {

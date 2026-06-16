@@ -81,11 +81,25 @@ export class InsufficientFundsError extends Error {
  * Record a Consumption Event. Returns the created ledger entry on success (201),
  * throws InsufficientFundsError on 402, and a generic Error otherwise so the form
  * can render success and insufficient-funds states distinctly (issue #3).
+ *
+ * `idempotencyKey` (docs/adr/0002) is a client-minted UUID for the submission,
+ * reused across retries of that same submission so a retried POST is charged
+ * exactly once. The form mints one key per submit and passes it on every retry.
  */
-export async function consume(req: ConsumeRequest): Promise<LedgerEntry> {
+export async function consume(
+  req: ConsumeRequest,
+  idempotencyKey?: string,
+): Promise<LedgerEntry> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (idempotencyKey) {
+    headers["Idempotency-Key"] = idempotencyKey;
+  }
+
   const res = await fetch(`${API_BASE}/consumption-events`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(req),
   });
 

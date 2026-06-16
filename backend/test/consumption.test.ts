@@ -177,3 +177,118 @@ describe("overspend race (docs/adr/0001)", () => {
     expect(ledgerCount).toBe(1);
   });
 });
+
+describe("idempotent consumption (docs/adr/0002)", () => {
+  it("replays a duplicate Idempotency-Key without a second deduction", async () => {
+    const supertest = (await import("supertest")).default;
+    await seedProduct("p_idem", 100);
+    await seedCustomer("c_idem", 1000);
+    const key = "idem-replay-key-1";
+
+    const first = await supertest(app)
+      .post("/consumption-events")
+      .set("Idempotency-Key", key)
+      .send({ customerId: "c_idem", productId: "p_idem", quantity: 2 });
+    expect(first.status).toBe(201);
+    expect(first.body.data.amount).toBe(-200);
+
+    // Retry with the SAME key → original row returned, no second charge.
+    const replay = await supertest(app)
+      .post("/consumption-events")
+      .set("Idempotency-Key", key)
+      .send({ customerId: "c_idem", productId: "p_idem", quantity: 2 });
+    expect(replay.status).toBe(201);
+    // Same ledger row id — it is the original, not a new charge.
+    expect(replay.body.data.id).toBe(first.body.data.id);
+
+    // Charged exactly once: balance 1000 - 200 = 800, one ledger row.
+    const customer = await prisma.customer.findUnique({ where: { id: "c_idem" } });
+    expect(customer?.balance).toBe(800);
+    const ledgerCount = await prisma.ledgerEntry.count({
+      where: { customerId: "c_idem" },
+    });
+    expect(ledgerCount).toBe(1);
+  });
+
+  it("processes a new key as a deliberate second charge", async () => {
+    const supertest = (await import("supertest")).default;
+    await seedProduct("p_idem2", 100);
+    await seedCustomer("c_idem2", 1000);
+
+    await supertest(app)
+      .post("/consumption-events")
+      .set("Idempotency-Key", "key-a")
+      .send({ customerId: "c_idem2", productId: "p_idem2", quantity: 1 });
+    // A DIFFERENT key is a new submission → it charges again.
+    await supertest(app)
+      .post("/consumption-events")
+      .set("Idempotency-Key", "key-b")
+      .send({ customerId: "c_idem2", productId: "p_idem2", quantity: 1 });
+
+    const customer = await prisma.customer.findUnique({ where: { id: "c_idem2" } });
+    expect(customer?.balance).toBe(800); // two charges of 100
+    const ledgerCount = await prisma.ledgerEntry.count({
+      where: { customerId: "c_idem2" },
+    });
+    expect(ledgerCount).toBe(2);
+  });
+
+  it("processes header-less requests normally (no dedup), so curl stays simple", async () => {
+    const supertest = (await import("supertest")).default;
+    await seedProduct("p_nokey", 100);
+    await seedCustomer("c_nokey", 1000);
+
+    // Two identical requests with NO Idempotency-Key → two distinct charges.
+    await supertest(app)
+      .post("/consumption-events")
+      .send({ customerId: "c_nokey", productId: "p_nokey", quantity: 1 });
+    await supertest(app)
+      .post("/consumption-events")
+      .send({ customerId: "c_nokey", productId: "p_nokey", quantity: 1 });
+
+    const customer = await prisma.customer.findUnique({ where: { id: "c_nokey" } });
+    expect(customer?.balance).toBe(800);
+    const ledgerCount = await prisma.ledgerEntry.count({
+      where: { customerId: "c_nokey" },
+    });
+    expect(ledgerCount).toBe(2);
+  });
+
+  it("double-fire: same key sent concurrently → exactly one charge, one ledger row", async () => {
+    const supertest = (await import("supertest")).default;
+    const N = 20;
+    const UNIT_PRICE = 100;
+    await seedProduct("p_double", UNIT_PRICE);
+    // Balance affords MANY purchases — so any extra charge would be visible as a
+    // lower balance / extra row. The single charge is enforced by the key, not by
+    // running out of funds.
+    await seedCustomer("c_double", UNIT_PRICE * N);
+    const key = "double-fire-key";
+
+    const results = await Promise.all(
+      Array.from({ length: N }, () =>
+        supertest(app)
+          .post("/consumption-events")
+          .set("Idempotency-Key", key)
+          .send({ customerId: "c_double", productId: "p_double", quantity: 1 }),
+      ),
+    );
+
+    // Every concurrent request resolves successfully (201) — the replays return
+    // the original row rather than erroring (docs/adr/0002).
+    expect(results.every((r) => r.status === 201)).toBe(true);
+    // All responses reference the SAME ledger row.
+    const ids = new Set(results.map((r) => r.body.data.id));
+    expect(ids.size).toBe(1);
+
+    // Charged exactly once despite N concurrent fires of the same key.
+    const customer = await prisma.customer.findUnique({
+      where: { id: "c_double" },
+    });
+    expect(customer?.balance).toBe(UNIT_PRICE * N - UNIT_PRICE);
+    const ledgerCount = await prisma.ledgerEntry.count({
+      where: { customerId: "c_double" },
+    });
+    expect(ledgerCount).toBe(1);
+  });
+});
