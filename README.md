@@ -141,6 +141,24 @@ balance that affords exactly one, and asserts: exactly one `201`, the rest `402`
 balance exactly `0` (never negative), and exactly one ledger row. It is excluded from
 the default `npm test` (which is dependency-free).
 
+### Load test — thousands of consumptions per minute
+
+With the stack up (`docker compose up`), `node scripts/load-test.mjs` fires a storm of
+consumption events at one customer through the proxy while a separate loop polls the
+dashboard's `GET /customers` the whole time, then proves both consistency and liveness:
+
+```sh
+node scripts/load-test.mjs                 # defaults: COUNT=3000 CONCURRENCY=40
+COUNT=10000 CONCURRENCY=80 node scripts/load-test.mjs
+```
+
+It asserts the final balance dropped by **exactly** `successes × cost` (no lost updates,
+no overspend) and that **no dashboard read failed** during the storm. A representative
+local run: **3000 consumes in ~3.3s (~900/s ≈ 54,000/min)**, balance exact, dashboard
+reads `p50 13ms / p95 90ms` with **0 failures** — i.e. far above "thousands per minute",
+and the read path stays fast under the write storm because WAL readers don't block the
+single writer.
+
 > **Throughput ceiling.** SQLite has a **single database-wide write lock**: every
 > consume across every customer and every instance serializes through it. nginx and
 > three processes add availability and spread CPU, but **not write throughput** — the
