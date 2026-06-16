@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { IconType } from "react-icons";
+import { TbCashBanknoteMinus, TbCashBanknotePlus, TbHistory } from "react-icons/tb";
 import { balanceStatus, fetchCustomers, formatCredits } from "./api";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -10,41 +12,17 @@ const STATUS_LABEL: Record<string, string> = {
 /** The per-row actions, each opening a modal for that customer. */
 export type CustomerAction = "details" | "consume" | "credit";
 
-/** Feather-style inline icons so no icon dependency is added. */
-function DetailsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-function ConsumeIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    </svg>
-  );
-}
-function CreditIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="8" x2="12" y2="16" />
-      <line x1="8" y1="12" x2="16" y2="12" />
-    </svg>
-  );
-}
-
+// Tabler icons (react-icons): history for details, cash-minus for consumption
+// (money leaves the wallet), cash-plus for a credit/top-up (money enters).
 const ACTIONS: {
   action: CustomerAction;
   label: string;
   modifier: string;
-  Icon: () => JSX.Element;
+  Icon: IconType;
 }[] = [
-  { action: "details", label: "View details", modifier: "details", Icon: DetailsIcon },
-  { action: "consume", label: "Consume a product", modifier: "consume", Icon: ConsumeIcon },
-  { action: "credit", label: "Credit wallet", modifier: "credit", Icon: CreditIcon },
+  { action: "details", label: "View details", modifier: "details", Icon: TbHistory },
+  { action: "consume", label: "Consume a product", modifier: "consume", Icon: TbCashBanknoteMinus },
+  { action: "credit", label: "Credit wallet", modifier: "credit", Icon: TbCashBanknotePlus },
 ];
 
 /**
@@ -116,7 +94,7 @@ export function CustomerList({
                       aria-label={`${label}: ${customer.name}`}
                       onClick={() => onAction?.(customer.id, action)}
                     >
-                      <Icon />
+                      <Icon size={18} aria-hidden />
                     </button>
                   ))}
                 </div>
