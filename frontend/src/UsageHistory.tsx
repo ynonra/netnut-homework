@@ -35,6 +35,12 @@ function typeLabel(type: string): string {
  *
  * The empty-history state (no rows at all) is handled distinctly from loading and
  * error, so the no-consumption customer reads as "no usage yet" rather than blank.
+ *
+ * Polls on the shared ~5s interval (src/queryClient.ts, docs/adr/0003): a
+ * consumption applied by another instance or an external system appends ledger
+ * rows this client never wrote, and the poll refetches the loaded pages so they
+ * surface within one cycle. The client's own top-up additionally invalidates this
+ * query immediately (see CustomerDetail) for instant feedback.
  */
 export function UsageHistory({ customerId }: { customerId: string }) {
   const {

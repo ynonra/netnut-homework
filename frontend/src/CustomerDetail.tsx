@@ -22,7 +22,9 @@ const STATUS_LABEL: Record<string, string> = {
  * immediately (docs/adr/0003).
  *
  * The balance is read from the shared ["customers"] query (the same source the
- * list polls), so a top-up applied anywhere converges everywhere.
+ * list polls), so a top-up applied anywhere converges everywhere. That query —
+ * like every read here — polls on the shared ~5s interval (src/queryClient.ts), so
+ * the detail view stays fresh against external writers, not just its own top-ups.
  */
 export function CustomerDetail({ customerId }: { customerId: string }) {
   const queryClient = useQueryClient();

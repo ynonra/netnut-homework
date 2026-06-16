@@ -4,9 +4,8 @@ A small usage-based billing platform: customers consume products measured in uni
 their wallet balance is updated accordingly under concurrent access, with guaranteed
 data consistency.
 
-> **Status:** design phase. This repo currently holds the domain glossary and the
-> architecture decision records. Implementation (Node.js · TypeScript · SQLite ·
-> Prisma · Docker Compose · React) follows the decisions captured below.
+> Built with Node.js · TypeScript · Express · Prisma · SQLite · Docker Compose ·
+> React (Vite, React Query), following the architecture decisions captured below.
 
 ## Architecture decisions
 
@@ -41,11 +40,10 @@ The domain language is defined in [`CONTEXT.md`](CONTEXT.md).
 **Idempotency** — client `Idempotency-Key` header → `@unique` column → dedup via constraint
 violation inside the deduction transaction.
 
-**Freshness** — polling (React Query, ~5s) with refetch on the client's own mutations. A
-Socket.IO + Redis-adapter push design is documented as the "with more time / on Postgres"
-path; it was de-scoped because high event volume requires server-side coalescing (which
-polling gets for free) and external writers require CDC (unavailable on SQLite) or a
-transactional outbox.
+**Freshness** — polling (React Query, ~5s) with immediate refetch on the client's own
+mutations; converges to DB truth under multiple instances and external writers. A
+Socket.IO + Redis-adapter push design was worked out but de-scoped — see
+[Freshness](#freshness--polling-and-why-not-push) below.
 
 **API** — resource-creation semantics; `402` for insufficient funds (Stripe-aligned);
 `404` / `422` / `400` error taxonomy with a shared error envelope; express-validator at the
@@ -53,6 +51,46 @@ route boundary; existence and funds checks in the service layer.
 
 **No authentication** — out of scope for an internal dashboard; in production every endpoint
 would sit behind service-to-service auth / an API gateway.
+
+## Freshness — polling, and why not push
+
+The dashboard must reflect balances and usage as Customers consume and are credited,
+including writes made by **other backend instances or external systems**. Freshness
+is delivered by **polling**, per [ADR 0003](docs/adr/0003-polling-for-freshness.md):
+
+- **Every read polls on a shared ~5s interval.** `refetchInterval` is set once as a
+  global default on the React Query client (`frontend/src/queryClient.ts`), so the
+  customer list (US-A), the customer detail balance (US-B, which reads the same
+  shared `["customers"]` query), and the cursor-paginated usage history all converge
+  on each cycle without each call site repeating the interval. Polling continues
+  while the tab is backgrounded (`refetchIntervalInBackground`).
+- **The client's own consume / credit refetches immediately.** On a successful
+  mutation, `onSuccess` invalidates the affected queries (`["customers"]`, and
+  `["usage-events", customerId]` for a top-up), so the operator sees their own write
+  reflected at once rather than waiting up to ~5s for the next poll.
+- **Convergence within one poll cycle.** A consumption applied by another instance or
+  an external system appends ledger rows and decrements the balance this client never
+  wrote; the next poll reads DB truth and the views catch up — at most ~5s stale.
+
+**Why push (Socket.IO + Redis adapter) was de-scoped.** A live-push design was worked
+out in full (rooms per Customer, the `@socket.io/redis-adapter` for cross-instance
+fan-out, emit-after-commit, refetch-on-reconnect) and is documented as the
+"with more time / on Postgres" path. Two facts made it the wrong *primary* mechanism
+at this scale:
+
+1. **Volume.** Thousands of events/min per Customer means naive per-event emits flood
+   clients with intermediate balances no one can read; push would need server-side
+   coalescing to become usable — a property polling has for free, since reading the
+   current balance every ~5s inherently collapses the intermediate churn.
+2. **External writers.** Emit-after-commit only fires for writes *this* app handles. A
+   consumption applied by another system would never emit, so pushed clients silently
+   drift. Capturing *all* writes needs CDC (unavailable on SQLite) or a transactional
+   outbox (requires every writer to cooperate). Polling reflects arbitrary writers
+   with neither.
+
+So polling is correct under multiple instances and external writers, naturally
+coalescing under high volume, and cheaper in engineering time than a push layer that
+would still need polling underneath it as a correctness backstop.
 
 ## What I'd improve with more time
 
@@ -123,6 +161,7 @@ npm test                    # integration tests against a real temp SQLite file
 # frontend
 cd frontend && npm install
 npm run dev                 # http://localhost:5173 (proxies /api -> :4000)
+npm test                    # vitest: polling-freshness contract (jsdom)
 ```
 
 ## Project layout

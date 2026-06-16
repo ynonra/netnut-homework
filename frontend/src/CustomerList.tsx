@@ -13,7 +13,8 @@ const STATUS_LABEL: Record<string, string> = {
  * detail view (US-B) where the Wallet can be credited.
  *
  * Polls every ~5s (docs/adr/0003): the balance changes as customers consume and
- * are credited, so the dashboard refetches and converges to DB truth.
+ * are credited, so the dashboard refetches and converges to DB truth. The interval
+ * comes from the shared QueryClient default (src/queryClient.ts), not repeated here.
  */
 export function CustomerList({
   selectedId,
@@ -25,7 +26,6 @@ export function CustomerList({
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["customers"],
     queryFn: fetchCustomers,
-    refetchInterval: 5000,
   });
 
   if (isLoading) {
