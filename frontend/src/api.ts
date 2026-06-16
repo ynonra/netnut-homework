@@ -123,6 +123,40 @@ export async function consume(
 }
 
 /**
+ * Credit a Customer's Wallet (Top-up, US-B). `amount` is in integer minor units
+ * and must be a positive integer — validated again at the route boundary. Returns
+ * the created CREDIT ledger entry on success (201). The caller refetches the
+ * customers query so the balance reflects the top-up immediately.
+ */
+export async function creditWallet(
+  customerId: string,
+  amount: number,
+): Promise<LedgerEntry> {
+  const res = await fetch(
+    `${API_BASE}/customers/${encodeURIComponent(customerId)}/credits`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount }),
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Request failed: ${res.status} ${res.statusText}`;
+    try {
+      const body = (await res.json()) as { message?: string };
+      if (body.message) message = body.message;
+    } catch {
+      // non-JSON body; keep the status-based message.
+    }
+    throw new Error(message);
+  }
+
+  const body = (await res.json()) as Envelope<LedgerEntry>;
+  return body.data;
+}
+
+/**
  * Balances at or below this threshold (in minor units) are "low". This lives on
  * the client because the indicator is purely presentational — the authoritative
  * no-negative-balance invariant is enforced in the backend (docs/adr/0001).

@@ -9,12 +9,19 @@ const STATUS_LABEL: Record<string, string> = {
 
 /**
  * Renders the customer list from GET /customers with each balance formatted as
- * currency and a low/depleted indicator (US-A).
+ * currency and a low/depleted indicator (US-A). Selecting a row opens the customer
+ * detail view (US-B) where the Wallet can be credited.
  *
  * Polls every ~5s (docs/adr/0003): the balance changes as customers consume and
  * are credited, so the dashboard refetches and converges to DB truth.
  */
-export function CustomerList() {
+export function CustomerList({
+  selectedId,
+  onSelect,
+}: {
+  selectedId?: string;
+  onSelect?: (customerId: string) => void;
+}) {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["customers"],
     queryFn: fetchCustomers,
@@ -45,8 +52,15 @@ export function CustomerList() {
       <tbody>
         {data?.map((customer) => {
           const status = balanceStatus(customer.balance);
+          const selected = customer.id === selectedId;
           return (
-            <tr key={customer.id}>
+            <tr
+              key={customer.id}
+              className={selected ? "catalog__row--selected" : undefined}
+              aria-selected={selected}
+              onClick={onSelect ? () => onSelect(customer.id) : undefined}
+              style={onSelect ? { cursor: "pointer" } : undefined}
+            >
               <td>{customer.name}</td>
               <td className="num">{formatCredits(customer.balance)}</td>
               <td>

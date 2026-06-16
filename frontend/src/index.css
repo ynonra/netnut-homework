@@ -82,6 +82,44 @@ body {
   color: #374151;
 }
 
+.section__hint {
+  margin: -0.4rem 0 0.75rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+/* Selected row in the customer list (opens the detail view, US-B). */
+.catalog__row--selected td {
+  background: #eef2ff;
+}
+
+/* Customer detail view with the credit-the-wallet form (US-B). */
+.detail {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  margin-bottom: 0.75rem;
+}
+
+.detail__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.detail__name {
+  font-size: 1rem;
+  margin: 0;
+  color: #374151;
+}
+
+.detail__balance {
+  margin: 0.4rem 0 0.85rem;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
 /* Low/depleted balance indicator (US-A). */
 .badge {
   display: inline-block;

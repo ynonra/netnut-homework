@@ -1,8 +1,14 @@
+import { useState } from "react";
 import { ConsumeForm } from "./ConsumeForm";
+import { CustomerDetail } from "./CustomerDetail";
 import { CustomerList } from "./CustomerList";
 import { ProductCatalog } from "./ProductCatalog";
 
 export function App() {
+  // The customer selected for the detail view (US-B). Selecting a row in the list
+  // opens the credit-the-wallet form for that customer.
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>();
+
   return (
     <div className="app">
       <header className="app__header">
@@ -16,8 +22,18 @@ export function App() {
         </section>
         <section className="section">
           <h2 className="section__title">Customers</h2>
-          <CustomerList />
+          <p className="section__hint">Select a customer to credit their wallet.</p>
+          <CustomerList
+            selectedId={selectedCustomerId}
+            onSelect={setSelectedCustomerId}
+          />
         </section>
+        {selectedCustomerId && (
+          <section className="section">
+            <h2 className="section__title">Customer detail</h2>
+            <CustomerDetail customerId={selectedCustomerId} />
+          </section>
+        )}
         <section className="section">
           <h2 className="section__title">Product catalog</h2>
           <ProductCatalog />
