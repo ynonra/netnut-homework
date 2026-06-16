@@ -12,7 +12,8 @@
     "migrate:deploy": "prisma migrate deploy",
     "migrate:dev": "prisma migrate dev",
     "seed": "ts-node prisma/seed.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:cross-process": "vitest run --config vitest.cross-process.config.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

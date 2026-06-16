@@ -1,33 +1,84 @@
 # `docker compose up` brings up the whole stack with no local dependencies beyond
-# Docker: backend (Node/TS/Express + Prisma), SQLite (file on a named volume,
-# migrated and seeded on startup), and the React dashboard.
+# Docker: THREE backend instances (Node/TS/Express + Prisma) behind an nginx
+# round-robin reverse proxy, all sharing ONE SQLite file on a named volume (opened
+# in WAL mode with busy_timeout), plus the React dashboard.
+#
+# This is the cross-process consistency demo (issue #7 / docs/adr/0001): a burst of
+# concurrent consumes is spread round-robin across the three processes by nginx, yet
+# the final balance is exactly correct — because correctness comes from the atomic
+# conditional UPDATE under SQLite's single database-wide write lock, not from any
+# in-process coordination.
+
+x-backend-base: &backend-base
+  build:
+    context: ./backend
+  environment: &backend-env
+    # connection_limit=1 is the correct pool shape for SQLite's single write lock
+    # (docs/adr/0001): concurrent consumes queue in Prisma's pool and run one at a
+    # time rather than fighting the lock. pool_timeout lets them wait. Every process
+    # opens the SAME db file on the shared volume.
+    DATABASE_URL: "file:/data/app.db?connection_limit=1&pool_timeout=30"
+    PORT: "4000"
+  volumes:
+    # Named volume holds the SQLite db (+ WAL/SHM) so all instances share one file
+    # and data survives restarts.
+    - billing-data:/data
 
 services:
-  backend:
-    build:
-      context: ./backend
+  # One-shot: applies migrations + seed exactly once before any serving instance
+  # starts. Running `migrate deploy` from multiple processes concurrently would race
+  # on the schema, so a single dedicated container owns it (RUN_MIGRATIONS=1) and
+  # exits (MIGRATE_ONLY=1). The serving replicas wait for it to complete.
+  migrate:
+    <<: *backend-base
     environment:
-      # connection_limit=1 is the correct pool shape for SQLite's single write
-      # lock (docs/adr/0001): concurrent consumes queue in Prisma's pool and run
-      # one at a time rather than fighting the lock. pool_timeout lets them wait.
-      - DATABASE_URL=file:/data/app.db?connection_limit=1&pool_timeout=30
-      - PORT=4000
+      <<: *backend-env
+      RUN_MIGRATIONS: "1"
+      MIGRATE_ONLY: "1"
+    restart: "no"
+
+  backend-1:
+    <<: *backend-base
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  backend-2:
+    <<: *backend-base
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  backend-3:
+    <<: *backend-base
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # Round-robin reverse proxy. This is the single API entrypoint on :4000; it fans
+  # requests out across the three backend processes (see nginx/nginx.conf).
+  proxy:
+    image: nginx:1.27-alpine
     volumes:
-      # Named volume holds the SQLite db (+ WAL/SHM) so data survives restarts.
-      - billing-data:/data
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "4000:4000"
+    depends_on:
+      - backend-1
+      - backend-2
+      - backend-3
 
   frontend:
     build:
       context: ./frontend
     environment:
-      # Inside the compose network the backend is reachable by service name.
-      - VITE_API_PROXY_TARGET=http://backend:4000
+      # Inside the compose network the API is reachable through the proxy, which
+      # load-balances across the backend instances.
+      - VITE_API_PROXY_TARGET=http://proxy:4000
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      - proxy
 
 volumes:
   billing-data:

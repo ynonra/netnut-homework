@@ -25,10 +25,15 @@ The domain language is defined in [`CONTEXT.md`](CONTEXT.md).
 ## Design summary
 
 **Consistency (primary concern)**
-- SQLite in WAL mode + `busy_timeout`, on a shared volume across 2–3 instances behind nginx.
+- SQLite in WAL mode + `busy_timeout`, on one shared named volume across **three backend
+  instances behind an nginx round-robin proxy** (see [Multi-instance deployment](#multi-instance-deployment)).
 - Correctness comes from an **atomic conditional write** — `UPDATE … WHERE balance >= cost`
   (Prisma `updateMany`, check rows affected), not from WAL. Race-proof, single statement,
   Postgres-portable. WAL is a concurrency mode only.
+- This holds **across processes**: a concurrent overspend race fired through the proxy lands
+  on different backend instances, yet exactly one consume succeeds, the balance never goes
+  negative, and exactly one ledger row is written — proven by an automated test
+  (`backend/test/cross-process-race.test.ts`) that stands up the real stack.
 - Hybrid model: a mutable `balance` (source of truth for the guard) plus an append-only
   `LedgerEntry`, written together in one transaction.
 - Money as **integer minor units**; `CHECK (balance >= 0)` as database-level defense-in-depth.
@@ -68,9 +73,42 @@ docker compose up --build
 - **Dashboard:** http://localhost:5173
 - **API:** http://localhost:4000 (e.g. `GET /products`)
 
-On startup the backend applies Prisma migrations (`prisma migrate deploy`) and runs
-the idempotent seed (~10 Products with varied prices, in integer minor units). SQLite
-lives on a named volume and is opened in WAL mode with `busy_timeout` (docs/adr/0001).
+- **API entrypoint** is the nginx proxy on `:4000`, which round-robins across the
+  three backend instances.
+
+On startup a one-shot `migrate` container applies Prisma migrations (`prisma migrate
+deploy`) and runs the idempotent seed (~10 Products with varied prices, in integer
+minor units) exactly once; the three serving backends wait for it to complete, then
+start. SQLite lives on a single named volume shared by all instances, opened in WAL
+mode with `busy_timeout` (docs/adr/0001).
+
+### Multi-instance deployment
+
+`docker compose up` runs **three backend processes** (`backend-1/2/3`) behind an
+**nginx round-robin reverse proxy** (`nginx/nginx.conf`), all sharing **one SQLite
+file** on a named volume. This makes the cross-process consistency claim watchable:
+a burst of concurrent consumes is spread across the three processes by the proxy, yet
+the final balance is exactly correct.
+
+A single dedicated `migrate` service owns schema migration + seed so the serving
+instances never run `migrate deploy` concurrently (which would race on the schema).
+
+The connection pool is shaped for SQLite's lock: `connection_limit=1` per process, so
+concurrent consumes queue cleanly in Prisma's pool and `busy_timeout` makes contending
+writers across processes **wait** for the single write lock rather than erroring.
+
+**Cross-process race test** — `npm run test:cross-process` (from `backend/`, requires
+Docker) stands up the whole stack, fires N concurrent consumes at the proxy against a
+balance that affords exactly one, and asserts: exactly one `201`, the rest `402`, final
+balance exactly `0` (never negative), and exactly one ledger row. It is excluded from
+the default `npm test` (which is dependency-free).
+
+> **Throughput ceiling.** SQLite has a **single database-wide write lock**: every
+> consume across every customer and every instance serializes through it. nginx and
+> three processes add availability and spread CPU, but **not write throughput** — the
+> write lock is the ceiling. The upgrade is **Postgres**, whose row-level locking lets
+> different customers' wallets commit in parallel (the identical `updateMany` guard
+> ports unchanged). See "What I'd improve with more time".
 
 ### Local development (optional)
 
@@ -90,7 +128,8 @@ npm run dev                 # http://localhost:5173 (proxies /api -> :4000)
 ## Project layout
 
 ```
-backend/    Node.js · TypeScript · Express · Prisma · SQLite
+backend/    Node.js · TypeScript · Express · Prisma · SQLite (×3 instances)
 frontend/   React · Vite · React Query
+nginx/      round-robin reverse proxy in front of the backend instances
 docker-compose.yml   one command brings up the full stack
 ```
