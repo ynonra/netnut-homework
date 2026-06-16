@@ -144,12 +144,13 @@ describe("ConsumeForm", () => {
     expect((await screen.findByRole("alert")).textContent).toMatch(/network blip/);
   });
 
-  it("presets and locks the customer when opened for a specific customer", async () => {
+  it("shows the customer as static text — no selector — when opened for a specific customer", async () => {
     renderWithClient(<ConsumeForm customerId="c1" />);
 
-    const customerSelect = (await screen.findByLabelText("Customer")) as HTMLSelectElement;
-    await waitFor(() => expect(customerSelect.value).toBe("c1"));
-    // Opened from a row → the customer is fixed and cannot be changed here.
-    expect(customerSelect.disabled).toBe(true);
+    // The fixed customer is shown for context, not as a dropdown.
+    expect(await screen.findByText(/Acme \(\$2\.50\)/)).toBeDefined();
+    // No customer control remains; the only combobox is the product select.
+    expect(screen.queryByLabelText("Customer")).toBeNull();
+    expect(screen.getAllByRole("combobox")).toHaveLength(1);
   });
 });

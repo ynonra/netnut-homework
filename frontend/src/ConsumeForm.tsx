@@ -31,6 +31,7 @@ export function ConsumeForm({
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const customerLocked = presetCustomerId != null;
+  const presetCustomer = customers.data?.find((c) => c.id === customerId);
 
   // The idempotency key for the current submission (docs/adr/0002). Minted once
   // per submit in onSubmit and held in a ref so React Query's retries reuse it —
@@ -76,21 +77,34 @@ export function ConsumeForm({
   return (
     <form className="consume" onSubmit={onSubmit}>
       <div className="consume__row">
-        <label className="consume__field">
-          <span>Customer</span>
-          <select
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            disabled={customers.isLoading || customerLocked}
-          >
-            <option value="">Select customer…</option>
-            {customers.data?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({formatCredits(c.balance)})
-              </option>
-            ))}
-          </select>
-        </label>
+        {customerLocked ? (
+          // Opened from a customer row — the customer is fixed, so show it as
+          // context rather than a selector.
+          <div className="consume__field">
+            <span>Customer</span>
+            <p className="consume__static">
+              {presetCustomer
+                ? `${presetCustomer.name} (${formatCredits(presetCustomer.balance)})`
+                : "…"}
+            </p>
+          </div>
+        ) : (
+          <label className="consume__field">
+            <span>Customer</span>
+            <select
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+              disabled={customers.isLoading}
+            >
+              <option value="">Select customer…</option>
+              {customers.data?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({formatCredits(c.balance)})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="consume__field">
           <span>Product</span>

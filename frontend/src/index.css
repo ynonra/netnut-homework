@@ -186,6 +186,18 @@ body {
   background: #fff;
 }
 
+/* Read-only field value (e.g. the fixed customer in the consume modal). */
+.consume__static {
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #eef0f4;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  background: #f8fafc;
+}
+
 .consume__submit {
   padding: 0.55rem 1.1rem;
   border: none;

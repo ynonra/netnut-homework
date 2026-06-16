@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { App } from "./App";
 import { renderWithClient } from "./testUtils";
 import type { Customer, Product } from "./api";
@@ -51,7 +51,7 @@ describe("App dashboard shell", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("opens the consume modal (customer preset + locked) from the row action, and closes it", async () => {
+  it("opens the consume modal for the row's customer (shown as fixed context), and closes it", async () => {
     renderWithClient(<App />);
 
     const consumeBtn = await screen.findByRole("button", {
@@ -60,15 +60,13 @@ describe("App dashboard shell", () => {
     fireEvent.click(consumeBtn);
 
     const dialog = await screen.findByRole("dialog");
-    expect(screen.getByText("Consume a product")).toBeDefined(); // modal title
-    // The customer is preset to the row and locked.
-    const customerSelect = screen.getByLabelText("Customer") as HTMLSelectElement;
-    await waitFor(() => expect(customerSelect.value).toBe("c1"));
-    expect(customerSelect.disabled).toBe(true);
+    expect(within(dialog).getByText("Consume a product")).toBeDefined(); // modal title
+    // The customer is shown as fixed context inside the dialog, not as a selector.
+    await waitFor(() => expect(within(dialog).getByText(/Acme/)).toBeDefined());
+    expect(within(dialog).queryByLabelText("Customer")).toBeNull();
 
     fireEvent.click(screen.getByLabelText("Close"));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    void dialog;
   });
 
   it("opens the credit modal from the row action", async () => {
