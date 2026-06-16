@@ -56,19 +56,28 @@ describe("CustomerList", () => {
     expect(statuses).toEqual(["depleted", "low", "healthy"]);
   });
 
-  it("reports the clicked customer to the parent and marks it selected", async () => {
+  it("renders three tooltipped action buttons per row that report the action", async () => {
     vi.mocked(fetchCustomers).mockResolvedValue([
       customer({ id: "c_low", name: "Low Co", balance: 300 }),
     ]);
-    const onSelect = vi.fn();
+    const onAction = vi.fn();
 
-    renderWithClient(<CustomerList selectedId="c_low" onSelect={onSelect} />);
+    renderWithClient(<CustomerList onAction={onAction} />);
 
-    const row = (await screen.findByText("Low Co")).closest("tr")!;
-    expect(row.getAttribute("aria-selected")).toBe("true");
+    // Accessible name (aria-label) + tooltip (title), scoped to the customer.
+    const details = await screen.findByRole("button", { name: "View details: Low Co" });
+    const consume = screen.getByRole("button", { name: "Consume a product: Low Co" });
+    const credit = screen.getByRole("button", { name: "Credit wallet: Low Co" });
+    expect(details.getAttribute("title")).toBe("View details — Low Co");
 
-    fireEvent.click(row);
-    expect(onSelect).toHaveBeenCalledWith("c_low");
+    fireEvent.click(details);
+    fireEvent.click(consume);
+    fireEvent.click(credit);
+    expect(onAction.mock.calls).toEqual([
+      ["c_low", "details"],
+      ["c_low", "consume"],
+      ["c_low", "credit"],
+    ]);
   });
 
   it("surfaces a load failure instead of rendering an empty table", async () => {

@@ -143,4 +143,13 @@ describe("ConsumeForm", () => {
     expect(keys).toEqual([UUID, UUID, UUID]);
     expect((await screen.findByRole("alert")).textContent).toMatch(/network blip/);
   });
+
+  it("presets and locks the customer when opened for a specific customer", async () => {
+    renderWithClient(<ConsumeForm customerId="c1" />);
+
+    const customerSelect = (await screen.findByLabelText("Customer")) as HTMLSelectElement;
+    await waitFor(() => expect(customerSelect.value).toBe("c1"));
+    // Opened from a row → the customer is fixed and cannot be changed here.
+    expect(customerSelect.disabled).toBe(true);
+  });
 });

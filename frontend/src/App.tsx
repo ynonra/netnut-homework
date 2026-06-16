@@ -1,13 +1,24 @@
 import { useState } from "react";
 import { ConsumeForm } from "./ConsumeForm";
+import { CreditForm } from "./CreditForm";
 import { CustomerDetail } from "./CustomerDetail";
-import { CustomerList } from "./CustomerList";
+import { CustomerList, CustomerAction } from "./CustomerList";
+import { Modal } from "./Modal";
 import { ProductCatalog } from "./ProductCatalog";
 
+const MODAL_TITLE: Record<CustomerAction, string> = {
+  details: "Customer details",
+  consume: "Consume a product",
+  credit: "Credit wallet",
+};
+
 export function App() {
-  // The customer selected for the detail view (US-B). Selecting a row in the list
-  // opens the credit-the-wallet form for that customer.
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>();
+  // The open action modal for a customer (US-B/US-C). Each customer row's action
+  // buttons open the matching modal; the main content stays the list + catalog.
+  const [active, setActive] = useState<{
+    customerId: string;
+    action: CustomerAction;
+  } | null>(null);
 
   return (
     <div className="app">
@@ -17,28 +28,34 @@ export function App() {
       </header>
       <main>
         <section className="section">
-          <h2 className="section__title">Consume a product</h2>
-          <ConsumeForm />
-        </section>
-        <section className="section">
           <h2 className="section__title">Customers</h2>
-          <p className="section__hint">Select a customer to credit their wallet.</p>
+          <p className="section__hint">
+            Use the actions on each row to view details, consume a product, or
+            credit the wallet.
+          </p>
           <CustomerList
-            selectedId={selectedCustomerId}
-            onSelect={setSelectedCustomerId}
+            onAction={(customerId, action) => setActive({ customerId, action })}
           />
         </section>
-        {selectedCustomerId && (
-          <section className="section">
-            <h2 className="section__title">Customer detail</h2>
-            <CustomerDetail customerId={selectedCustomerId} />
-          </section>
-        )}
         <section className="section">
           <h2 className="section__title">Product catalog</h2>
           <ProductCatalog />
         </section>
       </main>
+
+      {active && (
+        <Modal title={MODAL_TITLE[active.action]} onClose={() => setActive(null)}>
+          {active.action === "details" && (
+            <CustomerDetail customerId={active.customerId} />
+          )}
+          {active.action === "consume" && (
+            <ConsumeForm customerId={active.customerId} />
+          )}
+          {active.action === "credit" && (
+            <CreditForm customerId={active.customerId} />
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

@@ -17,14 +17,20 @@ import {
  * On success it invalidates the customers query so the balance list refetches and
  * converges to DB truth (docs/adr/0003).
  */
-export function ConsumeForm() {
+export function ConsumeForm({
+  customerId: presetCustomerId,
+}: {
+  /** When opened from a customer row, the customer is preset and locked. */
+  customerId?: string;
+} = {}) {
   const queryClient = useQueryClient();
   const customers = useQuery({ queryKey: ["customers"], queryFn: fetchCustomers });
   const products = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
 
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(presetCustomerId ?? "");
   const [productId, setProductId] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const customerLocked = presetCustomerId != null;
 
   // The idempotency key for the current submission (docs/adr/0002). Minted once
   // per submit in onSubmit and held in a ref so React Query's retries reuse it —
@@ -75,7 +81,7 @@ export function ConsumeForm() {
           <select
             value={customerId}
             onChange={(e) => setCustomerId(e.target.value)}
-            disabled={customers.isLoading}
+            disabled={customers.isLoading || customerLocked}
           >
             <option value="">Select customer…</option>
             {customers.data?.map((c) => (

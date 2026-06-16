@@ -256,3 +256,129 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Per-row action icon buttons (US-B/US-C): details, consume, credit. */
+.row-actions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.icon-btn:hover,
+.icon-btn:focus-visible {
+  color: #fff;
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* Colour-code the hover per action for quick recognition. */
+.icon-btn--details:hover,
+.icon-btn--details:focus-visible {
+  background: #1a1a2e;
+  border-color: #1a1a2e;
+}
+.icon-btn--consume:hover,
+.icon-btn--consume:focus-visible {
+  background: #4338ca;
+  border-color: #4338ca;
+}
+.icon-btn--credit:hover,
+.icon-btn--credit:focus-visible {
+  background: #166534;
+  border-color: #166534;
+}
+
+/* Modal dialog hosting the per-customer actions. */
+.modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 17, 30, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4rem 1rem;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  outline: none;
+  animation: modal-in 0.12s ease-out;
+}
+
+@keyframes modal-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.modal__title {
+  font-size: 1.05rem;
+  margin: 0;
+  color: #1a1a2e;
+}
+
+.modal__close {
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+}
+
+.modal__close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.modal__body {
+  padding: 1.25rem;
+}
+
+/* Inside the modal the form/detail already sits on a white panel, so drop their
+   own card chrome to avoid a card-in-card. */
+.modal__body .consume,
+.modal__body .detail {
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 0;
+}
