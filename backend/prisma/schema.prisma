@@ -2,8 +2,7 @@
 //
 // Money is stored as INTEGER minor units everywhere (never floats) — see CONTEXT.md
 // "Resolved policy" and docs/adr/0001. Most models use cuid() ids; the high-write,
-// cursor-paginated LedgerEntry will use an autoincrement Int id (docs/adr/0004) when
-// it is introduced in a later slice.
+// cursor-paginated LedgerEntry uses an autoincrement Int id (docs/adr/0004).
 
 generator client {
   provider      = "prisma-client-js"
@@ -44,4 +43,38 @@ model Customer {
   balance   Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  ledgerEntries LedgerEntry[]
+}
+
+/// A recorded historical row capturing a Consumption Event (and later, a Top-up)
+/// for audit and history (CONTEXT.md "Usage Event"). Append-only; the Balance is
+/// kept consistent with the ledger by writing this row in the same transaction as
+/// the atomic deduction (docs/adr/0001).
+///
+/// Unlike the other models, this uses an autoincrement Int primary key: it is the
+/// one high-write, cursor-paginated table, and a monotonic sortable id is a stable
+/// pagination tiebreaker that cuid() cannot provide (docs/adr/0004). The compound
+/// index on (customerId, createdAt) backs the newest-first history seek.
+///
+/// `amount` and `cost` are in integer minor units (e.g. cents) — never floats.
+model LedgerEntry {
+  id         Int               @id @default(autoincrement())
+  customerId String
+  customer   Customer          @relation(fields: [customerId], references: [id])
+  /// CONSUMPTION (this slice) or, later, TOPUP. Stored as a string for SQLite.
+  type       String
+  /// The Product consumed (null for non-consumption entries such as top-ups).
+  productId  String?
+  /// Units consumed in this event (null for non-consumption entries).
+  quantity   Int?
+  /// Unit Price captured at the time of the event, in minor units. Snapshotted so
+  /// history stays correct even if the Product's price later changes.
+  unitPrice  Int?
+  /// Signed change to the Balance in minor units: negative for a consumption
+  /// deduction, positive for a top-up. cost = -amount for a consumption.
+  amount     Int
+  createdAt  DateTime          @default(now())
+
+  @@index([customerId, createdAt])
 }

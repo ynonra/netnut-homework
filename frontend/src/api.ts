@@ -43,6 +43,71 @@ export async function fetchCustomers(): Promise<Customer[]> {
   return body.data;
 }
 
+/** A recorded Consumption Event row returned by POST /consumption-events. */
+export interface LedgerEntry {
+  id: number;
+  customerId: string;
+  type: string;
+  productId: string | null;
+  quantity: number | null;
+  unitPrice: number | null;
+  /** Signed balance change in minor units (negative for a consumption). */
+  amount: number;
+  createdAt: string;
+}
+
+export interface ConsumeRequest {
+  customerId: string;
+  productId: string;
+  quantity: number;
+}
+
+/**
+ * Raised when POST /consumption-events returns 402: the wallet lacks sufficient
+ * Credits. Carries the structured body so the form can surface it distinctly from
+ * a generic failure.
+ */
+export class InsufficientFundsError extends Error {
+  constructor(
+    readonly balance: number,
+    readonly required: number,
+  ) {
+    super("insufficient_funds");
+    this.name = "InsufficientFundsError";
+  }
+}
+
+/**
+ * Record a Consumption Event. Returns the created ledger entry on success (201),
+ * throws InsufficientFundsError on 402, and a generic Error otherwise so the form
+ * can render success and insufficient-funds states distinctly (issue #3).
+ */
+export async function consume(req: ConsumeRequest): Promise<LedgerEntry> {
+  const res = await fetch(`${API_BASE}/consumption-events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+
+  if (res.status === 402) {
+    const body = (await res.json()) as { balance: number; required: number };
+    throw new InsufficientFundsError(body.balance, body.required);
+  }
+  if (!res.ok) {
+    let message = `Request failed: ${res.status} ${res.statusText}`;
+    try {
+      const body = (await res.json()) as { message?: string };
+      if (body.message) message = body.message;
+    } catch {
+      // non-JSON body; keep the status-based message.
+    }
+    throw new Error(message);
+  }
+
+  const body = (await res.json()) as Envelope<LedgerEntry>;
+  return body.data;
+}
+
 /**
  * Balances at or below this threshold (in minor units) are "low". This lives on
  * the client because the indicator is purely presentational — the authoritative

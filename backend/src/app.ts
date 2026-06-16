@@ -2,6 +2,7 @@ import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { customersRouter } from "./routes/customers.routes";
 import { productsRouter } from "./routes/products.routes";
+import { consumptionRouter } from "./routes/consumption.routes";
 
 /**
  * Build the Express app. Kept separate from server bootstrap so tests can mount
@@ -19,6 +20,7 @@ export function createApp() {
 
   app.use(productsRouter);
   app.use(customersRouter);
+  app.use(consumptionRouter);
 
   // Shared error envelope. Later slices add a richer taxonomy (402/404/422).
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

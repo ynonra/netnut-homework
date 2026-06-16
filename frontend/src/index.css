@@ -106,3 +106,83 @@ body {
   background: #fee2e2;
   color: #991b1b;
 }
+
+/* Consume-a-product form (US-C). */
+.consume {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.consume__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.consume__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1 1 12rem;
+}
+
+.consume__field--qty {
+  flex: 0 0 6rem;
+}
+
+.consume__field span {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.consume__field select,
+.consume__field input {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background: #fff;
+}
+
+.consume__submit {
+  padding: 0.55rem 1.1rem;
+  border: none;
+  border-radius: 6px;
+  background: #1a1a2e;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.consume__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.consume__msg {
+  margin: 0.85rem 0 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.consume__msg--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* Insufficient funds (402) — distinct from a generic error. */
+.consume__msg--denied {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.consume__msg--error {
+  background: #fee2e2;
+  color: #991b1b;
+}

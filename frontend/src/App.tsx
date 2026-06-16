@@ -1,3 +1,4 @@
+import { ConsumeForm } from "./ConsumeForm";
 import { CustomerList } from "./CustomerList";
 import { ProductCatalog } from "./ProductCatalog";
 
@@ -9,6 +10,10 @@ export function App() {
         <p className="app__subtitle">Customers &amp; product catalog</p>
       </header>
       <main>
+        <section className="section">
+          <h2 className="section__title">Consume a product</h2>
+          <ConsumeForm />
+        </section>
         <section className="section">
           <h2 className="section__title">Customers</h2>
           <CustomerList />

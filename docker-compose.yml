@@ -7,7 +7,10 @@ services:
     build:
       context: ./backend
     environment:
-      - DATABASE_URL=file:/data/app.db
+      # connection_limit=1 is the correct pool shape for SQLite's single write
+      # lock (docs/adr/0001): concurrent consumes queue in Prisma's pool and run
+      # one at a time rather than fighting the lock. pool_timeout lets them wait.
+      - DATABASE_URL=file:/data/app.db?connection_limit=1&pool_timeout=30
       - PORT=4000
     volumes:
       # Named volume holds the SQLite db (+ WAL/SHM) so data survives restarts.
