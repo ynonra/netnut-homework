@@ -56,6 +56,10 @@ export function ConsumeForm({
     onSuccess: () => {
       // Refetch balances so the dashboard reflects the deduction immediately.
       void queryClient.invalidateQueries({ queryKey: ["customers"] });
+      // Reset the form for the next entry — keep the customer (so several consumes
+      // for the same customer are quick), clear product and quantity.
+      setProductId("");
+      setQuantity("1");
     },
   });
 

@@ -109,6 +109,13 @@ describe("ConsumeForm", () => {
       { customerId: "c1", productId: "p1", quantity: 3 },
       UUID,
     );
+
+    // Form resets for the next entry: product and quantity cleared, customer kept.
+    await waitFor(() =>
+      expect((screen.getByLabelText("Product") as HTMLSelectElement).value).toBe(""),
+    );
+    expect((screen.getByLabelText("Quantity") as HTMLInputElement).value).toBe("1");
+    expect((screen.getByLabelText("Customer") as HTMLSelectElement).value).toBe("c1");
   });
 
   it("surfaces 402 insufficient funds immediately, without retrying", async () => {
