@@ -1,0 +1,30 @@
+# `docker compose up` brings up the whole stack with no local dependencies beyond
+# Docker: backend (Node/TS/Express + Prisma), SQLite (file on a named volume,
+# migrated and seeded on startup), and the React dashboard.
+
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      - DATABASE_URL=file:/data/app.db
+      - PORT=4000
+    volumes:
+      # Named volume holds the SQLite db (+ WAL/SHM) so data survives restarts.
+      - billing-data:/data
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      # Inside the compose network the backend is reachable by service name.
+      - VITE_API_PROXY_TARGET=http://backend:4000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  billing-data:

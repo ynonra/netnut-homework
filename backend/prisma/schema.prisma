@@ -1,0 +1,28 @@
+// Prisma schema for the usage-based billing system.
+//
+// Money is stored as INTEGER minor units everywhere (never floats) — see CONTEXT.md
+// "Resolved policy" and docs/adr/0001. Most models use cuid() ids; the high-write,
+// cursor-paginated LedgerEntry will use an autoincrement Int id (docs/adr/0004) when
+// it is introduced in a later slice.
+
+generator client {
+  provider      = "prisma-client-js"
+  // "native" for local dev; the musl targets cover the Alpine container image.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// A thing a Customer can consume. Has a Name and a Unit Price (Credits per unit).
+/// unitPrice is in integer minor units (e.g. cents) — never a float.
+model Product {
+  id        String   @id @default(cuid())
+  name      String
+  /// Unit Price: cost in minor units (e.g. cents) of consuming one unit.
+  unitPrice Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

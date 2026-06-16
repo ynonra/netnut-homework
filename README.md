@@ -59,5 +59,38 @@ would sit behind service-to-service auth / an API gateway.
 
 ## Running
 
-> To be added with the implementation. Target: `docker compose up`, no local dependencies
-> beyond Docker.
+The whole stack runs with Docker only — no local Node, SQLite, or Prisma needed:
+
+```sh
+docker compose up --build
+```
+
+- **Dashboard:** http://localhost:5173
+- **API:** http://localhost:4000 (e.g. `GET /products`)
+
+On startup the backend applies Prisma migrations (`prisma migrate deploy`) and runs
+the idempotent seed (~10 Products with varied prices, in integer minor units). SQLite
+lives on a named volume and is opened in WAL mode with `busy_timeout` (docs/adr/0001).
+
+### Local development (optional)
+
+```sh
+# backend
+cd backend && npm install
+cp .env.example .env
+npx prisma migrate dev      # creates the SQLite db + runs the seed
+npm run dev                 # http://localhost:4000
+npm test                    # integration tests against a real temp SQLite file
+
+# frontend
+cd frontend && npm install
+npm run dev                 # http://localhost:5173 (proxies /api -> :4000)
+```
+
+## Project layout
+
+```
+backend/    Node.js · TypeScript · Express · Prisma · SQLite
+frontend/   React · Vite · React Query
+docker-compose.yml   one command brings up the full stack
+```
