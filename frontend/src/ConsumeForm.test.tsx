@@ -111,7 +111,7 @@ describe("ConsumeForm", () => {
     );
   });
 
-  it("surfaces 402 as insufficient funds and reuses the same key across retries", async () => {
+  it("surfaces 402 insufficient funds immediately, without retrying", async () => {
     vi.mocked(consume).mockRejectedValue(new InsufficientFundsError(250, 750));
 
     renderWithClient(<ConsumeForm />);
@@ -122,10 +122,25 @@ describe("ConsumeForm", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toMatch(/Insufficient funds: balance \$2\.50, need \$7\.50/);
 
-    // The form sets retry: 2 → 3 attempts. Every attempt must reuse the one key
-    // minted for this submission (ADR 0002), so a retried POST dedups to one charge.
+    // A 402 is a deterministic business rejection — retrying cannot change it and
+    // would only delay the message, so the form must NOT retry: exactly one call.
+    expect(consume).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a transient failure and reuses the same idempotency key each attempt", async () => {
+    // A non-402 (e.g. a lost response) is retryable; retry: 2 → up to 3 attempts.
+    vi.mocked(consume).mockRejectedValue(new Error("network blip"));
+
+    renderWithClient(<ConsumeForm />);
+    await selectCustomerAndProduct();
+    fireEvent.change(screen.getByLabelText("Quantity"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /Consume/ }));
+
+    // Every attempt reuses the one key minted for this submission (ADR 0002), so a
+    // retried POST that did reach the server dedups server-side to a single charge.
     await waitFor(() => expect(consume).toHaveBeenCalledTimes(3));
     const keys = vi.mocked(consume).mock.calls.map((c) => c[1]);
     expect(keys).toEqual([UUID, UUID, UUID]);
+    expect((await screen.findByRole("alert")).textContent).toMatch(/network blip/);
   });
 });

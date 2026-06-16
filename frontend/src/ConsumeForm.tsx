@@ -38,9 +38,14 @@ export function ConsumeForm() {
         { customerId, productId, quantity: Number(quantity) },
         idempotencyKey.current,
       ),
-    // Retries reuse the same mutationFn closure, hence the same key in the ref —
-    // so a retried submission is deduped server-side to a single charge.
-    retry: 2,
+    // Retry only transient failures (e.g. a lost response), up to 2 times. Retries
+    // reuse the same mutationFn closure — hence the same idempotency key in the ref
+    // — so a retried submission is deduped server-side to a single charge (ADR
+    // 0002). Insufficient funds (402) is a deterministic business rejection:
+    // retrying cannot change it and would only delay the message, so surface it
+    // immediately rather than after 3 attempts.
+    retry: (failureCount, error) =>
+      !(error instanceof InsufficientFundsError) && failureCount < 2,
     onSuccess: () => {
       // Refetch balances so the dashboard reflects the deduction immediately.
       void queryClient.invalidateQueries({ queryKey: ["customers"] });
