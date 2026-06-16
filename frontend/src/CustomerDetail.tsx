@@ -50,13 +50,16 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
 
   // Parse the major-unit input into integer minor units. Valid only when it is a
   // finite, positive amount with at most two decimal places (no fractional cents).
+  // The sub-cent check compares raw cents to the rounded value, so e.g. 1.234 is
+  // rejected rather than silently rounded to 123 — matching the error message.
   const major = Number(amount);
-  const minorUnits = Math.round(major * 100);
+  const cents = major * 100;
+  const minorUnits = Math.round(cents);
   const amountValid =
     amount.trim() !== "" &&
     Number.isFinite(major) &&
     major > 0 &&
-    Number.isInteger(minorUnits);
+    Math.abs(cents - minorUnits) < 1e-9;
   const canSubmit = amountValid && !mutation.isPending;
 
   function onSubmit(e: FormEvent) {
