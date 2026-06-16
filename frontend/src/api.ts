@@ -56,6 +56,38 @@ export interface LedgerEntry {
   createdAt: string;
 }
 
+/**
+ * One page of Usage history (US-B), returned by GET /customers/:id/usage-events.
+ * `nextCursor` is the cursor to request the next (older) page, or null on the last
+ * page. Unlike the other reads this endpoint returns the cursor alongside `data`,
+ * so it is not wrapped in the plain Envelope.
+ */
+export interface UsageEventsPage {
+  data: LedgerEntry[];
+  nextCursor: number | null;
+}
+
+/**
+ * Fetch one page of a Customer's newest-first Usage history. Pass the previous
+ * page's `nextCursor` to page backwards through older entries; omit it for the
+ * first (newest) page. Pagination is keyed on the monotonic Int id, never OFFSET
+ * (docs/adr/0004).
+ */
+export async function fetchUsageEvents(
+  customerId: string,
+  cursor?: number | null,
+  limit?: number,
+): Promise<UsageEventsPage> {
+  const params = new URLSearchParams();
+  if (cursor != null) params.set("cursor", String(cursor));
+  if (limit != null) params.set("limit", String(limit));
+  const qs = params.toString();
+  const path = `/customers/${encodeURIComponent(customerId)}/usage-events${
+    qs ? `?${qs}` : ""
+  }`;
+  return getJson<UsageEventsPage>(path);
+}
+
 export interface ConsumeRequest {
   customerId: string;
   productId: string;

@@ -224,3 +224,35 @@ body {
   background: #fee2e2;
   color: #991b1b;
 }
+
+/* Usage history on the customer detail view (US-B). */
+.detail__history {
+  margin-top: 1.25rem;
+}
+
+.detail__history-title {
+  font-size: 0.9rem;
+  margin: 0 0 0.6rem;
+  color: #374151;
+}
+
+.history__empty {
+  padding: 0.75rem 0;
+}
+
+.history__more {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.history__more:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

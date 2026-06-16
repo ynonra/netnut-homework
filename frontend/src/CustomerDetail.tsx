@@ -7,6 +7,7 @@ import {
   formatCredits,
   LedgerEntry,
 } from "./api";
+import { UsageHistory } from "./UsageHistory";
 
 const STATUS_LABEL: Record<string, string> = {
   depleted: "Depleted",
@@ -38,6 +39,10 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
       setAmount("");
       // Refetch balances so the detail and list reflect the top-up immediately.
       void queryClient.invalidateQueries({ queryKey: ["customers"] });
+      // A top-up appends a CREDIT row, so refetch this customer's history too.
+      void queryClient.invalidateQueries({
+        queryKey: ["usage-events", customerId],
+      });
     },
   });
 
@@ -120,6 +125,11 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
           </p>
         )}
       </form>
+
+      <div className="detail__history">
+        <h4 className="detail__history-title">Usage history</h4>
+        <UsageHistory customerId={customerId} />
+      </div>
     </div>
   );
 }

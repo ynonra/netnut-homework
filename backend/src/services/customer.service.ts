@@ -15,6 +15,26 @@ export interface CreditInput {
   amount: number;
 }
 
+export interface UsageEventsInput {
+  customerId: string;
+  /**
+   * Opaque cursor: the `Int` id of the last row of the previous page. The next
+   * page starts strictly *before* it (older id). Omitted → first (newest) page.
+   */
+  cursor?: number;
+  /** Page size. Clamped to a sane range at the route boundary. */
+  limit: number;
+}
+
+export interface UsageEventsPage {
+  data: LedgerEntry[];
+  /**
+   * Cursor to pass back for the next (older) page, or null when this is the last
+   * page. It is the `Int` id of the last returned row.
+   */
+  nextCursor: number | null;
+}
+
 /**
  * Customer reads and Wallet top-ups. The customer list is small (~10 rows,
  * docs/adr/0003), so a plain findMany is fine — no pagination here (that is for
@@ -26,6 +46,43 @@ export class CustomerService {
   /** List all customers with their current balance, ordered by name. */
   listCustomers(): Promise<Customer[]> {
     return this.prisma.customer.findMany({ orderBy: { name: "asc" } });
+  }
+
+  /**
+   * Newest-first, cursor-paginated Usage history for one Customer (US-B). Returns
+   * every LedgerEntry — both CONSUMPTION and CREDIT rows — for audit and history.
+   *
+   * Pagination is keyed on the monotonic autoincrement `Int` id, never OFFSET
+   * (docs/adr/0004). The id is monotonic, so ordering by id DESC is the same
+   * newest-first order as createdAt but with a stable, unique tiebreaker: under the
+   * write storm many rows share a `createdAt`, and a createdAt-only cursor would
+   * skip or duplicate rows at page boundaries — the id never collides.
+   *
+   * Prisma's `cursor` + `skip: 1` compiles to a seek (`WHERE id < cursor ORDER BY
+   * id DESC LIMIT n`), one index range scan per page, no OFFSET re-count. We fetch
+   * `limit + 1` rows to detect whether a further page exists without a second
+   * query, then trim the probe row and expose its predecessor's id as nextCursor.
+   *
+   * The customer's existence is verified by the route before calling this (a
+   * 404 must not look like an empty history).
+   */
+  async listUsageEvents(input: UsageEventsInput): Promise<UsageEventsPage> {
+    const { customerId, cursor, limit } = input;
+
+    const rows = await this.prisma.ledgerEntry.findMany({
+      where: { customerId },
+      orderBy: { id: "desc" },
+      take: limit + 1,
+      ...(cursor !== undefined
+        ? { cursor: { id: cursor }, skip: 1 }
+        : {}),
+    });
+
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore ? page[page.length - 1].id : null;
+
+    return { data: page, nextCursor };
   }
 
   /**

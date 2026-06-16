@@ -54,7 +54,9 @@ describe("GET /customers", () => {
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
-    expect(res.body.data.length).toBe(6);
+    // The seed defines 8 customers: the balance-spectrum set plus the
+    // heavy-consumption and no-consumption customers added for the history view.
+    expect(res.body.data.length).toBe(8);
 
     for (const c of res.body.data) {
       expect(typeof c.id).toBe("string");
@@ -100,6 +102,6 @@ describe("seed idempotency", () => {
     const { seed } = await import("../prisma/seed");
     await seed(prisma);
     const count = await prisma.customer.count();
-    expect(count).toBe(6);
+    expect(count).toBe(8);
   });
 });
