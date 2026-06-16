@@ -68,7 +68,7 @@ describe("CustomerList", () => {
     const details = await screen.findByRole("button", { name: "View details: Low Co" });
     const consume = screen.getByRole("button", { name: "Consume a product: Low Co" });
     const credit = screen.getByRole("button", { name: "Credit wallet: Low Co" });
-    expect(details.getAttribute("title")).toBe("View details — Low Co");
+    expect(details.getAttribute("data-tooltip")).toBe("View details");
 
     fireEvent.click(details);
     fireEvent.click(consume);

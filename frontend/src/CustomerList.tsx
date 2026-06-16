@@ -90,7 +90,7 @@ export function CustomerList({
                       key={action}
                       type="button"
                       className={`icon-btn icon-btn--${modifier}`}
-                      title={`${label} — ${customer.name}`}
+                      data-tooltip={label}
                       aria-label={`${label}: ${customer.name}`}
                       onClick={() => onAction?.(customer.id, action)}
                     >

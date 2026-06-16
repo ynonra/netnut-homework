@@ -37,8 +37,17 @@ body {
   border-collapse: collapse;
   background: #fff;
   border-radius: 8px;
-  overflow: hidden;
+  /* visible (not hidden) so the row-action hover tooltips can overflow the table */
+  overflow: visible;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Round the header corners explicitly since the table no longer clips them. */
+.catalog thead th:first-child {
+  border-top-left-radius: 8px;
+}
+.catalog thead th:last-child {
+  border-top-right-radius: 8px;
 }
 
 .catalog th,
@@ -277,6 +286,7 @@ body {
 }
 
 .icon-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -289,6 +299,46 @@ body {
   color: #4b5563;
   cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+/* Immediate tooltip on hover/focus — no native-title delay. */
+.icon-btn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.25rem 0.5rem;
+  border-radius: 5px;
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.icon-btn::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1a1a2e;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.icon-btn:hover::after,
+.icon-btn:focus-visible::after,
+.icon-btn:hover::before,
+.icon-btn:focus-visible::before {
+  opacity: 1;
 }
 
 .icon-btn:hover,
