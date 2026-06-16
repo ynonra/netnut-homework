@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { UsageHistory } from "./UsageHistory";
 import { renderWithClient } from "./testUtils";
@@ -14,9 +14,10 @@ import type { LedgerEntry } from "./api";
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
   fetchUsageEvents: vi.fn(),
+  fetchProducts: vi.fn(),
 }));
 
-import { fetchUsageEvents } from "./api";
+import { fetchProducts, fetchUsageEvents } from "./api";
 
 const entry = (over: Partial<LedgerEntry>): LedgerEntry => ({
   id: 1,
@@ -28,6 +29,19 @@ const entry = (over: Partial<LedgerEntry>): LedgerEntry => ({
   amount: -750,
   createdAt: "2026-01-01T00:00:00.000Z",
   ...over,
+});
+
+beforeEach(() => {
+  // The product column resolves productId -> name from the catalog.
+  vi.mocked(fetchProducts).mockResolvedValue([
+    {
+      id: "p1",
+      name: "Widget",
+      unitPrice: 250,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ]);
 });
 
 afterEach(() => {
@@ -58,10 +72,12 @@ describe("UsageHistory", () => {
 
     expect(await screen.findByText("Consumed")).toBeDefined();
     expect(screen.getByText("Credited")).toBeDefined();
+    // The consumption row resolves its productId to the product name.
+    expect(screen.getByText("Widget")).toBeDefined();
     expect(screen.getByText("-$7.50")).toBeDefined();
     expect(screen.getByText("$5.00")).toBeDefined();
-    // A credit has no quantity → rendered as an em dash.
-    expect(screen.getByText("—")).toBeDefined();
+    // A credit has neither a product nor a quantity → both render as an em dash.
+    expect(screen.getAllByText("—")).toHaveLength(2);
     // Last page (null cursor) → no load-more control.
     expect(screen.queryByText("Load more")).toBeNull();
   });

@@ -1,5 +1,6 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
+  fetchProducts,
   fetchUsageEvents,
   formatCredits,
   LedgerEntry,
@@ -60,6 +61,15 @@ export function UsageHistory({ customerId }: { customerId: string }) {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
+  // Resolve product ids to names from the (small, cached) catalog. The ledger
+  // stores productId, not the name; CREDIT rows have no product.
+  const products = useQuery({ queryKey: ["products"], queryFn: fetchProducts });
+  const productNameById = new Map(
+    (products.data ?? []).map((p) => [p.id, p.name]),
+  );
+  const productLabel = (row: LedgerEntry): string =>
+    row.productId ? productNameById.get(row.productId) ?? "—" : "—";
+
   if (isLoading) {
     return <p className="state">Loading history…</p>;
   }
@@ -84,6 +94,7 @@ export function UsageHistory({ customerId }: { customerId: string }) {
           <tr>
             <th>When</th>
             <th>Type</th>
+            <th>Product</th>
             <th className="num">Qty</th>
             <th className="num">Amount</th>
           </tr>
@@ -101,6 +112,7 @@ export function UsageHistory({ customerId }: { customerId: string }) {
                   {typeLabel(row.type)}
                 </span>
               </td>
+              <td>{productLabel(row)}</td>
               <td className="num">{row.quantity ?? "—"}</td>
               <td className="num">{formatCredits(row.amount)}</td>
             </tr>
