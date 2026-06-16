@@ -15,10 +15,13 @@ export function Modal({
   title,
   onClose,
   children,
+  wide = false,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** Wider panel for content-heavy modals (e.g. the usage-history table). */
+  wide?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +49,7 @@ export function Modal({
       }}
     >
       <div
-        className="modal"
+        className={wide ? "modal modal--wide" : "modal"}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"

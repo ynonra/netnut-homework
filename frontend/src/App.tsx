@@ -44,7 +44,11 @@ export function App() {
       </main>
 
       {active && (
-        <Modal title={MODAL_TITLE[active.action]} onClose={() => setActive(null)}>
+        <Modal
+          title={MODAL_TITLE[active.action]}
+          onClose={() => setActive(null)}
+          wide={active.action === "details"}
+        >
           {active.action === "details" && (
             <CustomerDetail customerId={active.customerId} />
           )}

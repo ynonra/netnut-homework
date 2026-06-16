@@ -391,6 +391,16 @@ body {
   animation: modal-in 0.12s ease-out;
 }
 
+/* Wider panel for content-heavy modals (the usage-history table). */
+.modal--wide {
+  max-width: 780px;
+}
+
+/* With the extra room, keep the history timestamp on a single line. */
+.history .catalog td:first-child {
+  white-space: nowrap;
+}
+
 @keyframes modal-in {
   from {
     transform: translateY(6px);
