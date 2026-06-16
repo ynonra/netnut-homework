@@ -22,6 +22,24 @@ const PRODUCTS: { id: string; name: string; unitPrice: number }[] = [
   { id: "prod_session_hour", name: "Sticky Session (hour)", unitPrice: 15 },
 ];
 
+/**
+ * Customers with balances in integer minor units (cents). Spans the full range the
+ * low/depleted indicator must distinguish (US-A):
+ *   - one depleted (balance === 0)
+ *   - one near-zero / low (just under the LOW_BALANCE_THRESHOLD used by the UI)
+ *   - several healthy
+ *
+ * Deterministic and idempotent: fixed ids, upserted, so re-running converges.
+ */
+const CUSTOMERS: { id: string; name: string; balance: number }[] = [
+  { id: "cust_acme", name: "Acme Corp", balance: 1_000_00 },
+  { id: "cust_globex", name: "Globex", balance: 250_00 },
+  { id: "cust_initech", name: "Initech", balance: 42_00 },
+  { id: "cust_umbrella", name: "Umbrella Inc", balance: 5_00 },
+  { id: "cust_hooli", name: "Hooli", balance: 4_99 },
+  { id: "cust_soylent", name: "Soylent", balance: 0 },
+];
+
 export async function seed(client: PrismaClient = prisma): Promise<void> {
   for (const p of PRODUCTS) {
     await client.product.upsert({
@@ -30,8 +48,17 @@ export async function seed(client: PrismaClient = prisma): Promise<void> {
       update: { name: p.name, unitPrice: p.unitPrice },
     });
   }
+  for (const c of CUSTOMERS) {
+    await client.customer.upsert({
+      where: { id: c.id },
+      create: c,
+      update: { name: c.name, balance: c.balance },
+    });
+  }
   // eslint-disable-next-line no-console
-  console.log(`Seeded ${PRODUCTS.length} products (idempotent).`);
+  console.log(
+    `Seeded ${PRODUCTS.length} products and ${CUSTOMERS.length} customers (idempotent).`,
+  );
 }
 
 // Run directly (prisma db seed / npm run seed).

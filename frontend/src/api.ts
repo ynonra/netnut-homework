@@ -29,6 +29,36 @@ export async function fetchProducts(): Promise<Product[]> {
   return body.data;
 }
 
+export interface Customer {
+  id: string;
+  name: string;
+  /** Current balance in integer minor units (e.g. cents). */
+  balance: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchCustomers(): Promise<Customer[]> {
+  const body = await getJson<Envelope<Customer[]>>("/customers");
+  return body.data;
+}
+
+/**
+ * Balances at or below this threshold (in minor units) are "low". This lives on
+ * the client because the indicator is purely presentational — the authoritative
+ * no-negative-balance invariant is enforced in the backend (docs/adr/0001).
+ */
+export const LOW_BALANCE_THRESHOLD = 5_00;
+
+export type BalanceStatus = "depleted" | "low" | "healthy";
+
+/** Classify a raw integer balance for the low/depleted indicator (US-A). */
+export function balanceStatus(minorUnits: number): BalanceStatus {
+  if (minorUnits <= 0) return "depleted";
+  if (minorUnits <= LOW_BALANCE_THRESHOLD) return "low";
+  return "healthy";
+}
+
 /** Format integer minor units as a currency string for display. */
 export function formatCredits(minorUnits: number): string {
   return (minorUnits / 100).toLocaleString(undefined, {

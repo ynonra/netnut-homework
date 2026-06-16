@@ -26,3 +26,22 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+/// The account that owns a Wallet and generates Consumption Events. The unit of
+/// billing and isolation (CONTEXT.md). The Wallet is collapsed onto the Customer
+/// (exactly one Wallet per Customer), so the spendable Balance lives here.
+///
+/// `balance` is the current Balance in integer minor units (e.g. cents) — never a
+/// float. It may never go negative: the atomic deduction guard (docs/adr/0001)
+/// enforces this primarily, and a CHECK (balance >= 0) constraint — added via raw
+/// SQL in the migration, since Prisma cannot model it natively — defends it at the
+/// database level.
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  /// Current Balance in minor units. Atomically decremented on consumption
+  /// (docs/adr/0001); CHECK (balance >= 0) guards against ever going negative.
+  balance   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
